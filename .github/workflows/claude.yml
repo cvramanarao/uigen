@@ -19,9 +19,9 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -32,8 +32,11 @@ jobs:
       
       - name: Project Setup
         run: |
-          npm run setup
-          npm run dev:daemon
+          npm install --legacy-peer-deps
+          npx prisma generate
+          npx prisma migrate dev
+          npm run dev &
+          sleep 5
 
       - name: Run Claude Code
         id: claude
@@ -61,5 +64,5 @@ jobs:
                   }
               }
            }
-          allowed_tools: "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_snapshot,mcp_playwright_browser_click"
+          allowed_tools: "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_snapshot,mcp__playwright__browser_click"
 
