@@ -23,13 +23,13 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      
+
       - name: Project Setup
         run: |
           npm install --legacy-peer-deps
@@ -38,31 +38,35 @@ jobs:
           npm run dev &
           sleep 5
 
+      - name: Create MCP Config
+        run: |
+          cat > /tmp/mcp-config.json << 'EOF'
+          {
+            "mcpServers": {
+              "playwright": {
+                "command": "npx",
+                "args": [
+                  "@playwright/mcp@latest",
+                  "--allowed-origins",
+                  "localhost:3000;cdn.tailwind.css.com;esm.sh"
+                ]
+              }
+            }
+          }
+          EOF
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-        
-          custom_instructions: |
+          prompt: |
             The project is already set up with all dependencies installed.
             The server is already running at localhost:3000.
-            Logs from it are being written to logs.txt. 
-            If needed you can query the db with the sqllite3 cli.
-            if needed use the mcp_playwright set of tools to launch a browser and interact with the app
-          
-          mcp_config: |
-           {
-              "mcpServers": {
-                  "playwright": {
-                      "command": "npx",
-                      "args": [
-                        "@playwright/mcp@latest",
-                        "--allowed-origins",
-                        "localhost:3000;cdn.tailwind.css.com;esm.sh"
-                      ]
-                  }
-              }
-           }
-          allowed_tools: "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_snapshot,mcp__playwright__browser_click"
-
+            If needed you can query the db with the sqlite3 cli.
+            Use the mcp_playwright tools to launch a browser and interact with the app.
+          claude_args: |
+            --mcp-config /tmp/mcp-config.json
+            --allowedTools "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_snapshot,mcp__playwright__browser_click"
+          additional_permissions: |
+            actions: read
